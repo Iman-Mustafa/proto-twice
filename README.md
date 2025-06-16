@@ -91,3 +91,15 @@ Pull requests are welcome! For major changes, please open an issue first.
 
 ## License
 Distributed under the MIT License. See `LICENSE` for more information.
+
+## Ollama Setup for Offline Mode
+
+To enable offline prototype generation:
+
+1. **Install Ollama**:
+   ```bash
+   # Linux/macOS
+   curl -fsSL https://ollama.com/install.sh | sh
+
+   # Windows (requires WSL2)
+   winget install ollama.ollama

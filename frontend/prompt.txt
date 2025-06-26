@@ -1,0 +1,1 @@
+a clean registration form interface with centered layout, full name field, email field, password input, confirm password input, register button, link to login, soft shadows, modern typography, white background, mobile-friendly, minimal UI

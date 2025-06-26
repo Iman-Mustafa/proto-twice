@@ -1,5 +1,11 @@
 import { useState, FormEvent } from 'react';
-import { FiDownload, FiBattery, FiBatteryCharging, FiZap, FiAlertCircle } from 'react-icons/fi';
+import {
+  FiDownload,
+  FiBattery,
+  FiBatteryCharging,
+  FiZap,
+  FiAlertCircle
+} from 'react-icons/fi';
 
 type FidelityLevel = 'high' | 'medium' | 'low';
 
@@ -9,10 +15,10 @@ interface AIGeneratorProps {
   loading: boolean;
 }
 
-export default function AIGenerator({ 
-  onGenerate, 
+export default function AIGenerator({
+  onGenerate,
   onDownload,
-  loading 
+  loading
 }: AIGeneratorProps) {
   const [prompt, setPrompt] = useState<string>('');
   const [fidelity, setFidelity] = useState<FidelityLevel>('high');
@@ -21,7 +27,7 @@ export default function AIGenerator({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    
+
     if (!prompt.trim()) {
       setError('Please describe your prototype');
       return;
@@ -59,19 +65,19 @@ export default function AIGenerator({
   return (
     <div className="bg-white rounded-2xl shadow-xl p-6 transition-all hover:shadow-2xl">
       <h2 className="text-2xl font-bold text-gray-800 mb-4">Describe Your Application</h2>
-      
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <textarea
             className={`w-full h-40 p-4 border ${
               error ? 'border-red-500' : 'border-gray-300'
             } rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all`}
-            placeholder="Example: 
+            placeholder={`Example: 
 A modern dashboard with:
 - Navigation sidebar
 - Statistics cards
 - Interactive charts
-- Recent activity feed"
+- Recent activity feed`}
             value={prompt}
             onChange={(e) => {
               setPrompt(e.target.value);
@@ -87,7 +93,7 @@ A modern dashboard with:
             </div>
           )}
         </div>
-        
+
         <div>
           <h3 className="font-medium text-gray-700 mb-2">Fidelity Level</h3>
           <div className="grid grid-cols-3 gap-3">
@@ -111,13 +117,13 @@ A modern dashboard with:
             ))}
           </div>
         </div>
-        
+
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
             className={`flex-1 py-3 px-6 rounded-lg text-white font-bold transition-all flex items-center justify-center ${
-              loading 
-                ? 'bg-indigo-400 cursor-not-allowed' 
+              loading
+                ? 'bg-indigo-400 cursor-not-allowed'
                 : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-lg'
             }`}
             disabled={loading}
@@ -135,8 +141,8 @@ A modern dashboard with:
               </>
             )}
           </button>
-          
-          <button
+
+          {/* <button
             type="button"
             onClick={onDownload}
             className="py-3 px-6 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700 hover:shadow-lg transition-all flex items-center justify-center"
@@ -144,7 +150,7 @@ A modern dashboard with:
           >
             <FiDownload className="h-5 w-5 mr-2" />
             Download
-          </button>
+          </button> */}
         </div>
       </form>
     </div>

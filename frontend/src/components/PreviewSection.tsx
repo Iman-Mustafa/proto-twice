@@ -5,7 +5,8 @@ type DeviceType = 'desktop' | 'tablet' | 'mobile';
 interface PreviewSectionProps {
   device: DeviceType;
   setDevice: (device: DeviceType) => void;
-  image: string;
+  images: string[];
+  labels: string[];
   downloadPrototype: () => void;
   loading: boolean;
   error: string | null;
@@ -22,7 +23,8 @@ interface PreviewSectionProps {
 export default function PreviewSection({
   device,
   setDevice,
-  image,
+  images,
+  labels,
   downloadPrototype,
   loading,
   error,
@@ -39,13 +41,7 @@ export default function PreviewSection({
         <h2 className="text-2xl font-bold text-gray-800">Preview</h2>
         <div className="flex gap-2">
           {(['desktop', 'tablet', 'mobile'] as DeviceType[]).map((type) => {
-            const Icon =
-              type === 'desktop'
-                ? FiMonitor
-                : type === 'tablet'
-                ? FiTablet
-                : FiSmartphone;
-
+            const Icon = type === 'desktop' ? FiMonitor : type === 'tablet' ? FiTablet : FiSmartphone;
             return (
               <button
                 key={type}
@@ -54,9 +50,7 @@ export default function PreviewSection({
                 aria-label={`${type} view`}
                 title={type}
                 className={`p-2 rounded-md ${
-                  device === type
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  device === type ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
                 <Icon className="h-5 w-5" />
@@ -105,7 +99,7 @@ export default function PreviewSection({
           </div>
         )}
 
-        {!image && !loading && !error && (
+        {!images.length && !loading && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center text-gray-500">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -121,30 +115,34 @@ export default function PreviewSection({
                 d="M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707M9.663 17h4.673m-3.41-3.904a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
               />
             </svg>
-            <p className="text-lg">Your UI screen will appear here</p>
-            <p className="mt-1 text-sm">Describe a screen and click Generate</p>
+            <p className="text-lg">Your UI screens will appear here</p>
+            <p className="mt-1 text-sm">Describe your app and click Generate</p>
           </div>
         )}
 
-        {image && !error && (
-          <div
-            className="flex items-center justify-center p-4 h-full"
-            style={deviceStyles[device]}
-          >
-            <img
-              src={`data:image/png;base64,${image}`}
-              alt="Generated UI"
-              className="max-w-full max-h-full object-contain rounded shadow"
-            />
+        {images.length > 0 && !error && (
+          <div className="flex flex-wrap justify-center items-start gap-6 p-4">
+            {images.map((img, idx) => (
+              <div key={idx} className="flex flex-col items-center" style={deviceStyles[device]}>
+                <p className="text-sm text-gray-600 mb-2">
+                  {labels?.[idx] ? `Screen ${idx + 1}: ${labels[idx]}` : `Screen ${idx + 1}`}
+                </p>
+                <img
+                  src={`data:image/png;base64,${img}`}
+                  alt={`Screen ${idx + 1}`}
+                  className="rounded shadow max-w-full max-h-[600px] object-contain"
+                />
+              </div>
+            ))}
           </div>
         )}
 
-        {image && !loading && (
+        {images.length > 0 && !loading && (
           <div className="mt-4 flex justify-center">
             <button
               className="px-6 py-3 rounded-lg font-bold bg-green-600 text-white hover:bg-green-700 hover:shadow-lg transition-all flex items-center"
               onClick={downloadPrototype}
-              aria-label="Download prototype"
+              aria-label="Download all screens"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

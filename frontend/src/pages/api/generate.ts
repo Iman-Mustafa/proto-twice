@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { fetch, Agent } from 'undici';
 
+const SD_API_URL = process.env.STABLE_DIFFUSION_API_URL || 'http://localhost:7860';
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -12,7 +14,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     cfg = 7,
     width = 512,
     height = 512,
-    timeoutMs = 24 * 60 * 60 * 1000 // 24 hours default
+    count = 1,
+    timeoutMs = 24 * 60 * 60 * 1000,
   } = req.body;
 
   if (!prompt.trim()) {
@@ -28,55 +31,62 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     bodyTimeout: timeoutMs,
   });
 
+  const safeCount = Math.max(1, Math.min(count, 10)); // limit batch size to 10
+
+  const payload = {
+    prompt: `<lora:revAnimated_v122:1> <lora:UI:1> ${prompt}`,
+    negative_prompt:
+      'blurry, bad proportions, deformed, watermark, text artifacts, low quality, noisy background, cropped, overexposed, unrealistic layout',
+    steps,
+    cfg_scale: cfg,
+    width,
+    height,
+    batch_size: safeCount,
+    sampler_name: 'DPM++ 2M Karras',
+    seed: 1214352040,
+    scheduler: 'Automatic',
+    override_settings: {
+      sd_model_checkpoint: 'revAnimated_v122.safetensors',
+      sd_vae: 'vae-ft-mse-840000-ema-pruned.safetensors',
+    },
+  };
+
   try {
-    const response = await fetch('http://localhost:7860/sdapi/v1/txt2img', {
+    console.log('🔁 Generating', safeCount, 'screens from prompt:', prompt);
+
+    const response = await fetch(`${SD_API_URL}/sdapi/v1/txt2img`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       dispatcher: agent,
-      body: JSON.stringify({
-        prompt: `<lora:revAnimated_v122:1> <lora:UI:1> ${prompt}`,
-        negative_prompt:
-          'blurry, bad proportions, deformed, watermark, text artifacts, low quality, noisy background, cropped, overexposed, unrealistic layout',
-        steps,
-        cfg_scale: cfg,
-        width,
-        height,
-        sampler_name: 'DPM++ 2M Karras',
-        seed: 1214352040,
-        scheduler: 'Automatic',
-        override_settings: {
-          sd_model_checkpoint: 'revAnimated_v122.safetensors',
-          sd_vae: 'vae-ft-mse-840000-ema-pruned.safetensors',
-        },
-      }),
+      body: JSON.stringify(payload),
     });
 
     clearTimeout(timeout);
 
     if (!response.ok) {
-      const err: any = await response.json().catch(() => ({}));
-      throw new Error(err?.error || `Stable Diffusion error ${response.status}`);
+      const errText = await response.text();
+      console.error('🟥 SD API error:', errText);
+      return res.status(502).json({ error: `Stable Diffusion returned ${response.status}` });
     }
 
-    const data = (await response.json()) as { images?: string[] };
-    const image = data.images?.[0];
+    const data = await response.json() as { images?: string[] };
+    const images = data.images ?? [];
 
-    if (!image) throw new Error('No image returned from Stable Diffusion');
+    if (!images.length) {
+      return res.status(500).json({ error: 'Stable Diffusion returned no images' });
+    }
 
-    return res.status(200).json({ image });
+    return res.status(200).json({ images });
   } catch (err: any) {
     clearTimeout(timeout);
 
     if (err.name === 'AbortError') {
-      console.error('🔴 Generation aborted due to timeout.');
-      return res.status(504).json({
-        error:
-          'Image generation timed out. You can try reducing the step count, resolution, or simplifying the prompt.',
-      });
+      console.error('🛑 Image generation timeout');
+      return res.status(504).json({ error: 'Image generation timed out' });
     }
 
-    console.error('⚠️ Image generation failed:', err);
-    return res.status(500).json({ error: err.message || 'Image generation failed' });
+    console.error('⚠️ Generation failed:', err);
+    return res.status(500).json({ error: err?.message || 'Unknown error during generation' });
   }
 }

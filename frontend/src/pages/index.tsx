@@ -5,13 +5,12 @@ import AIGenerator from '@/components/AIGenerator';
 import PreviewSection from '@/components/PreviewSection';
 import Footer from '@/components/Footer';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/router';
 
 const OfflineStatus = dynamic(() => import('@/components/OfflineStatus'), {
   ssr: false,
   loading: () => (
-    <div className="fixed top-4 left-1/2 transform -translate-x-1/2">
-      Loading status...
-    </div>
+    <div className="fixed top-4 left-1/2 transform -translate-x-1/2">Loading status...</div>
   ),
 });
 
@@ -26,7 +25,10 @@ type DeviceType = 'desktop' | 'tablet' | 'mobile';
 type FidelityLevel = 'high' | 'medium' | 'low';
 
 export default function Home() {
-  const [image, setImage] = useState<string>('');
+  const router = useRouter();
+
+  const [images, setImages] = useState<string[]>([]);
+  const [labels, setLabels] = useState<string[]>([]);
   const [device, setDevice] = useState<DeviceType>('desktop');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,10 +61,18 @@ export default function Home() {
 
     setLoading(true);
     setError(null);
-    setImage('');
+    setImages([]);
+    setLabels([]);
     setProgress(0);
     setEta(null);
     setProgressState('starting');
+
+    const screenLabels = prompt
+      .split(/[-–—→,|]+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    setLabels(screenLabels);
 
     let poller: NodeJS.Timeout | null = null;
 
@@ -70,7 +80,6 @@ export default function Home() {
       try {
         const res = await fetch('/api/progress');
         const data = await res.json();
-
         const pct = data.progress ?? 0;
         const etaSec = data.eta_relative ?? null;
 
@@ -85,7 +94,7 @@ export default function Home() {
           setProgressState('completing');
         }
       } catch {
-        // Fail silently
+        // fail silently
       }
     };
 
@@ -96,7 +105,11 @@ export default function Home() {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, fidelity }),
+        body: JSON.stringify({
+          prompt: screenLabels.join(' – '),
+          fidelity,
+          count: screenLabels.length || 1,
+        }),
       });
 
       if (!res.ok) {
@@ -105,13 +118,11 @@ export default function Home() {
       }
 
       const data = await res.json();
-      if (!data.image) throw new Error('No image returned');
-
+      if (!data.images?.length) throw new Error('No images returned from API');
       setProgress(100);
-      setImage(data.image);
+      setImages(data.images);
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Unknown error during generation';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error during generation';
       setError(errorMessage);
       console.error('Generation error:', err);
     } finally {
@@ -126,13 +137,22 @@ export default function Home() {
   };
 
   const downloadPrototype = () => {
-    if (!image) return;
-    const link = document.createElement('a');
-    link.href = `data:image/png;base64,${image}`;
-    link.download = `prototype-${new Date().toISOString().slice(0, 10)}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (!images.length) return;
+    images.forEach((img, idx) => {
+      const link = document.createElement('a');
+      link.href = `data:image/png;base64,${img}`;
+      link.download = `${labels[idx] || `screen-${idx + 1}`}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  };
+
+  const launchFlowMode = () => {
+    if (!images.length) return;
+    sessionStorage.setItem('protoScreens', JSON.stringify(images));
+    sessionStorage.setItem('protoLabels', JSON.stringify(labels));
+    router.push('/flow-preview');
   };
 
   const deviceStyles = {
@@ -179,7 +199,8 @@ export default function Home() {
             <PreviewSection
               device={device}
               setDevice={setDevice}
-              image={image}
+              images={images}
+              labels={labels}
               downloadPrototype={downloadPrototype}
               loading={loading}
               error={error}
@@ -188,6 +209,16 @@ export default function Home() {
               progressState={progressState}
               eta={eta}
             />
+            {images.length > 0 && !loading && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={launchFlowMode}
+                  className="px-6 py-2 rounded-lg font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition"
+                >
+                  Launch Flow Mode
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </main>
